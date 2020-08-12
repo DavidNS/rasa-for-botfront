@@ -47,6 +47,7 @@ class TrainingData:
         entity_synonyms: Optional[Dict[Text, Text]] = None,
         regex_features: Optional[List[Dict[Text, Text]]] = None,
         lookup_tables: Optional[List[Dict[Text, Any]]] = None,
+        gazette: Optional[List[Dict[Text, List[Text]]]] = None,
         responses: Optional[Dict[Text, List[Dict[Text, Any]]]] = None,
     ) -> None:
 
@@ -58,9 +59,9 @@ class TrainingData:
         self.regex_features = regex_features or []
         self.sort_regex_features()
         self.lookup_tables = lookup_tables or []
+        self.gazette = gazette if gazette else []
         self.responses = responses or {}
 
-        self._fill_response_phrases()
 
     def merge(self, *others: "TrainingData") -> "TrainingData":
         """Return merged instance of this data with other training data."""
@@ -69,6 +70,7 @@ class TrainingData:
         entity_synonyms = self.entity_synonyms.copy()
         regex_features = copy.deepcopy(self.regex_features)
         lookup_tables = copy.deepcopy(self.lookup_tables)
+        gazette = copy.__doc__deepcopy(self.gazette)
         responses = copy.deepcopy(self.responses)
         others = [other for other in others if other]
 
@@ -76,6 +78,7 @@ class TrainingData:
             training_examples.extend(copy.deepcopy(o.training_examples))
             regex_features.extend(copy.deepcopy(o.regex_features))
             lookup_tables.extend(copy.deepcopy(o.lookup_tables))
+            gazette.extend(copy.deepcopy(o.gazette))
 
             for text, syn in o.entity_synonyms.items():
                 check_duplicate_synonym(
@@ -90,6 +93,7 @@ class TrainingData:
             entity_synonyms,
             regex_features,
             lookup_tables,
+            gazette,
             responses,
         )
 
@@ -447,6 +451,7 @@ class TrainingData:
             entity_synonyms=self.entity_synonyms,
             regex_features=self.regex_features,
             lookup_tables=self.lookup_tables,
+            gazette=self.gazette,
             responses=train_responses,
         )
 
@@ -455,6 +460,7 @@ class TrainingData:
             entity_synonyms=self.entity_synonyms,
             regex_features=self.regex_features,
             lookup_tables=self.lookup_tables,
+            gazette=self.gazette,
             responses=test_responses,
         )
 

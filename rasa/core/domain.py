@@ -164,7 +164,7 @@ class Domain:
 
     @classmethod
     def from_dict(cls, data: Dict) -> "Domain":
-        utter_templates = cls.collect_templates(data.get(KEY_RESPONSES, {}))
+        utter_templates = cls.collect_bf_templates(data.get(KEY_RESPONSES, {}))
         if "templates" in data:
             raise_warning(
                 "Your domain file contains the key: 'templates'. This has been "
@@ -174,7 +174,7 @@ class Domain:
                 FutureWarning,
                 docs=DOCS_URL_DOMAINS,
             )
-            utter_templates = cls.collect_templates(data.get("templates", {}))
+            utter_templates = cls.collect_bf_templates(data.get("templates", {}))
 
         slots = cls.collect_slots(data.get(KEY_SLOTS, {}))
         additional_arguments = data.get("config", {})
@@ -416,6 +416,15 @@ class Domain:
                 intent_properties.update(properties)
 
     @staticmethod
+    def collect_bf_templates(
+        yml_templates: Dict[Text, Dict[Text, List[List[Any]]]]
+    ) -> Dict[Text, Dict[Text, List[List[Dict[Text, Any]]]]]:
+        """template name -> lang -> sequence of templates
+        Placeholder for actual validation
+        """
+        return yml_templates
+
+    @staticmethod
     def collect_templates(
         yml_templates: Dict[Text, List[Any]]
     ) -> Dict[Text, List[Dict[Text, Any]]]:
@@ -571,7 +580,8 @@ class Domain:
                     self.slots.append(UnfeaturizedSlot(s))
 
     def action_for_name(
-        self, action_name: Text, action_endpoint: Optional[EndpointConfig]
+        self, action_name: Text, action_endpoint: Optional[EndpointConfig],
+        bf_form_slot = [] # bf
     ) -> Optional[Action]:
         """Look up which action corresponds to this action name."""
 
@@ -587,10 +597,12 @@ class Domain:
             action_endpoint,
             self.user_actions_and_forms,
             should_use_form_action,
+            bf_form_slot, # bf
         )
 
     def action_for_index(
-        self, index: int, action_endpoint: Optional[EndpointConfig]
+        self, index: int, action_endpoint: Optional[EndpointConfig],
+        bf_form_slot = [] # bf
     ) -> Optional[Action]:
         """Integer index corresponding to an actions index in the action list.
 
@@ -603,7 +615,7 @@ class Domain:
                 "".format(index, self.num_actions)
             )
 
-        return self.action_for_name(self.action_names[index], action_endpoint)
+        return self.action_for_name(self.action_names[index], action_endpoint, bf_form_slot) # bf
 
     def actions(self, action_endpoint) -> List[Optional[Action]]:
         return [

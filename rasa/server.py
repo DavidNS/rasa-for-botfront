@@ -85,6 +85,7 @@ class ErrorResponse(Exception):
             "code": status,
         }
         self.status = status
+        logger.error(message)  # bf
 
 
 def _docs(sub_url: Text) -> Text:
@@ -391,7 +392,7 @@ def add_root_route(app: Sanic):
     @app.get("/")
     async def hello(request: Request):
         """Check if the server is running and responds with the version."""
-        return response.text("Hello from Rasa: " + rasa.__version__)
+        return response.text("Hello from Rasa: " + rasa.__version_bf__)  # bf
 
 
 def create_app(
@@ -440,7 +441,7 @@ def create_app(
 
         return response.json(
             {
-                "version": rasa.__version__,
+                "version": rasa.__version_bf__,  # bf
                 "minimum_compatible_version": MINIMUM_COMPATIBLE_VERSION,
             }
         )
@@ -500,12 +501,16 @@ def create_app(
             async with app.agent.lock_store.lock(conversation_id):
                 processor = app.agent.create_processor()
                 tracker = processor.get_tracker(conversation_id)
+                output_channel = _get_output_channel(request, tracker)  # bf
                 _validate_tracker(tracker, conversation_id)
 
                 events = _get_events_from_request_body(request)
 
                 for event in events:
                     tracker.update(event, app.agent.domain)
+                await processor._send_bot_messages(
+                    events, tracker, output_channel
+                )  # bf
                 app.agent.tracker_store.save(tracker)
 
             return response.json(tracker.current_state(verbosity))
@@ -872,7 +877,8 @@ def create_app(
         _, nlu_model = model.get_model_subdirectories(model_directory)
 
         try:
-            evaluation = run_evaluation(data_path, nlu_model)
+            language = request.args.get("language", None)  # bf
+            evaluation = run_evaluation(data_path, nlu_model.get(language))  # bf
             return response.json(evaluation)
         except Exception as e:
             logger.error(traceback.format_exc())
@@ -948,9 +954,14 @@ def create_app(
         try:
             data = emulator.normalise_request_json(request.json)
             try:
-                parsed_data = await app.agent.parse_message_using_nlu_interpreter(
-                    data.get("text")
-                )
+                # bf
+                processor = app.agent.create_processor()
+                lang = request.json.get("lang")
+                if not lang:
+                    raise Exception("'lang' property is required'")
+                message = UserMessage(data.get("text"), metadata={"language": lang})
+                parsed_data = await processor._parse_message(message)
+                # bf: end
             except Exception as e:
                 logger.debug(traceback.format_exc())
                 raise ErrorResponse(
@@ -1031,6 +1042,57 @@ def create_app(
                 f"header.",
             )
 
+    @app.post("/data/convert")
+    @requires_auth(app, auth_token)
+    async def post_data_convert(request: Request):
+        """Converts current domain in yaml or json format."""
+        validate_request_body(
+            request,
+            "You must provide training data in the request body in order to "
+            "train your model.",
+        )
+        rjs = request.json
+
+        if "data" not in rjs:
+            raise ErrorResponse(
+                400, "BadRequest", "Must provide training data in 'data' property"
+            )
+        if "output_format" not in rjs or rjs["output_format"] not in ["json", "md"]:
+            raise ErrorResponse(
+                400,
+                "BadRequest",
+                "'output_format' is required and must be either 'md' or 'json",
+            )
+        if "language" not in rjs:
+            raise ErrorResponse(400, "BadRequest", "'language' is required")
+
+        temp_dir = tempfile.mkdtemp()
+        out_dir = tempfile.mkdtemp()
+
+        nlu_data_path = os.path.join(temp_dir, "nlu_data")
+        output_path = os.path.join(out_dir, "output")
+
+        if type(rjs["data"]) is dict:
+            rasa.utils.io.dump_obj_as_json_to_file(nlu_data_path, rjs["data"])
+        else:
+            rasa.utils.io.write_text_file(rjs["data"], nlu_data_path)
+
+        from rasa.nlu.convert import convert_training_data
+
+        convert_training_data(
+            nlu_data_path, output_path, rjs["output_format"], rjs["language"]
+        )
+
+        with open(output_path, encoding="utf-8") as f:
+            data = f.read()
+
+        if rjs["output_format"] == "json":
+            import json
+
+            data = json.loads(data, encoding="utf-8")
+
+        return response.json({"data": data})
+
     return app
 
 
@@ -1083,7 +1145,7 @@ def _test_data_file_from_payload(request: Request) -> Text:
         )
 
 
-def _training_payload_from_json(request: Request) -> Dict[Text, Union[Text, bool]]:
+def _training_payload_from_json(request: Request) -> Dict[Text, Any]:
     logger.debug(
         "Extracting JSON payload with Markdown training data from request body."
     )
@@ -1095,13 +1157,26 @@ def _training_payload_from_json(request: Request) -> Dict[Text, Union[Text, bool
     # training data
     temp_dir = tempfile.mkdtemp()
 
-    config_path = os.path.join(temp_dir, "config.yml")
+    # bf >>
+    # config_path = os.path.join(temp_dir, "config.yml")
 
-    rasa.utils.io.write_text_file(request_payload["config"], config_path)
+    # rasa.utils.io.write_text_file(request_payload["config"], config_path)
+
+    config_paths = []
+    for key in request_payload["config"].keys():
+        config_path = os.path.join(temp_dir, "config-{}.yml".format(key))
+        rasa.utils.io.write_text_file(request_payload["config"][key], config_path)
+        config_paths += [config_path]
 
     if "nlu" in request_payload:
-        nlu_path = os.path.join(temp_dir, "nlu.md")
-        rasa.utils.io.write_text_file(request_payload["nlu"], nlu_path)
+        nlu_dir = os.path.join(temp_dir, "nlu")
+        os.mkdir(nlu_dir)
+
+        for key in request_payload["nlu"].keys():
+            nlu_path = os.path.join(nlu_dir, "{}.md".format(key))
+            rasa.utils.io.write_text_file(request_payload["nlu"][key]["data"], nlu_path)
+
+    # << bf
 
     if "stories" in request_payload:
         stories_path = os.path.join(temp_dir, "stories.md")
@@ -1125,12 +1200,17 @@ def _training_payload_from_json(request: Request) -> Dict[Text, Union[Text, bool
 
     return dict(
         domain=domain_path,
-        config=config_path,
+        config=config_paths,  # bf
         training_files=temp_dir,
         output=model_output_directory,
         force_training=request_payload.get(
             "force", request.args.get("force_training", False)
         ),
+        fixed_model_name=request_payload.get("fixed_model_name"),  # bf
+        persist_nlu_training_data=True,  # bf
+        core_additional_arguments={
+            "augmentation_factor": int(os.environ.get("AUGMENTATION_FACTOR", 50)),
+        },  # bf
     )
 
 

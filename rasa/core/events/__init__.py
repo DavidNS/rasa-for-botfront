@@ -346,13 +346,14 @@ class UserUttered(Event):
 
     @staticmethod
     def create_external(
-        intent_name: Text, entity_list: Optional[List[Dict[Text, Any]]] = None
+        intent_name: Text, entity_list: Optional[List[Dict[Text, Any]]] = None, input_channel: Optional[Text] = None,
     ) -> "UserUttered":
         return UserUttered(
             text=f"{EXTERNAL_MESSAGE_PREFIX}{intent_name}",
             intent={INTENT_NAME_KEY: intent_name},
             metadata={IS_EXTERNAL: True},
             entities=entity_list or [],
+            input_channel=input_channel,
         )
 
 
@@ -412,7 +413,8 @@ class BotUttered(Event):
         m = self.data.copy()
         m["text"] = self.text
         m["timestamp"] = self.timestamp
-        m.update(self.metadata)
+        m["metadata"] = self.metadata # bf mod: pass metadata in bot message
+        # m.update(self.metadata) # bf mod
 
         if m.get("image") == m.get("attachment"):
             # we need this as there is an oddity we introduced a while ago where

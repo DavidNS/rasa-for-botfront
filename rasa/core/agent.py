@@ -129,7 +129,8 @@ def _load_and_set_updated_model(
     core_path, nlu_path = get_model_subdirectories(model_directory)
 
     try:
-        interpreter = _load_interpreter(agent, nlu_path)
+        # interpreter = _load_interpreter(agent, nlu_path)
+        interpreter = NaturalLanguageInterpreter.create(nlu_path) # bf
         domain, policy_ensemble = _load_domain_and_policy_ensemble(core_path)
 
         agent.update_model(

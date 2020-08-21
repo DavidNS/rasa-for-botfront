@@ -88,7 +88,11 @@ def default_actions(action_endpoint: Optional[EndpointConfig] = None) -> List["A
 
 def default_action_names() -> List[Text]:
     """List default action names."""
-    return [a.name() for a in default_actions()] + [RULE_SNIPPET_ACTION_NAME] + list(actions_bf.keys()) # bf
+    return (
+        [a.name() for a in default_actions()]
+        + [RULE_SNIPPET_ACTION_NAME]
+        + list(actions_bf.keys())
+    )  # bf
 
 
 def combine_user_with_default_actions(user_actions: List[Text]) -> List[Text]:
@@ -119,7 +123,6 @@ def action_from_name(
     action_endpoint: Optional[EndpointConfig],
     user_actions: List[Text],
     should_use_form_action: bool = False,
-    bf_form_slot = [], # bf
 ) -> "Action":
     """Return an action instance for the name."""
 
@@ -131,9 +134,12 @@ def action_from_name(
         return ActionUtterTemplate(name)
     elif name.startswith(RESPOND_PREFIX):
         return ActionRetrieveResponse(name)
-    elif name.endswith("_form") and any(slot.get("name") == name for slot in bf_form_slot): # bf
+    # bf
+    elif name in actions_bf:
+        return actions_bf[name]
+    elif should_use_form_action.get("slots"):  # bf format for internal structure
         return generate_bf_form_action(name)
-    elif name in actions_bf: return actions_bf[name] # bf
+    # /bf
     elif should_use_form_action:
         from rasa.core.actions.forms import FormAction
 
@@ -150,7 +156,7 @@ def actions_from_names(
     """Converts the names of actions into class instances."""
 
     return [
-        action_from_name(name, action_endpoint, user_actions) for name in action_names # bf
+        action_from_name(name, action_endpoint, user_actions) for name in action_names
     ]
 
 
@@ -761,8 +767,10 @@ class ActionDefaultAskRephrase(ActionUtterTemplate):
     def __init__(self) -> None:
         super().__init__("utter_ask_rephrase", silent_fail=True)
 
-import sys # avoid circular imports when testing addons
-if not hasattr(sys, '_called_from_rasa_addons_test'):
-    from rasa_addons.core.actions import actions_bf, generate_bf_form_action # bf
+
+import sys  # avoid circular imports when testing addons
+
+if not hasattr(sys, "_called_from_rasa_addons_test"):
+    from rasa_addons.core.actions import actions_bf, generate_bf_form_action  # bf
 else:
     actions_bf = {}

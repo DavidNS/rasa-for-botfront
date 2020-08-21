@@ -23,10 +23,6 @@ def new_form_and_tracker(form_spec, requested_slot):
         [
             Slot(name=requested_slot),
             Slot(name="requested_slot", initial_value=requested_slot),
-            Slot(
-                name="bf_forms",
-                initial_value=[form_spec]
-            )
         ]
     )
     form.form_spec = form_spec # load spec manually

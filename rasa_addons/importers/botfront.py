@@ -102,10 +102,19 @@ class BotfrontFileImporter(TrainingDataImporter):
         try:
             domain = Domain.load(self._domain_path)
             domain.check_missing_templates()
+            ## legacy form injection
             bf_forms = []
             for slot in domain.slots:
                 if slot.name == "bf_forms": bf_forms = slot.initial_value
-            bf_forms = [f.get("name") for f in bf_forms]
+            if bf_forms:
+                from rasa.core.actions import action
+                domain.forms = [{form.get("name"): form} for form in bf_forms]
+                domain.form_names = [list(f.keys())[0] for f in bf_forms]
+                domain.action_names = (
+                    action.combine_user_with_default_actions(domain.user_actions)
+                    + domain.form_names
+                )
+            ##
 
         except InvalidDomain as e:
             logger.warning(

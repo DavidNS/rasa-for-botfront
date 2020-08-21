@@ -86,9 +86,7 @@ class ActionBotfrontForm(Action):
     ) -> List[Event]:
         # attempt retrieving spec
         if not len(self.form_spec):
-            for form in tracker.slots.get("bf_forms", {}).initial_value:
-                if form.get("name") == self.name():
-                    self.form_spec = clean_none_values(form)
+            self.form_spec = clean_none_values(domain.slot_mapping_for_form(self.name()))
             if not len(self.form_spec):
                 logger.debug(
                     f"Could not retrieve form '{tracker.active_loop}', there is something wrong with your domain."

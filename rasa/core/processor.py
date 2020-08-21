@@ -160,7 +160,7 @@ class MessageProcessor:
             )
 
             await self._run_action(
-                action=self._get_action(ACTION_SESSION_START_NAME, tracker), # bf
+                action=self._get_action(ACTION_SESSION_START_NAME),
                 tracker=tracker,
                 output_channel=output_channel,
                 nlg=self.nlg,
@@ -260,7 +260,7 @@ class MessageProcessor:
         # which maintains conversation state
         tracker = await self.get_tracker_with_session_start(sender_id, output_channel)
         if tracker:
-            action = self._get_action(action_name, tracker) # bf
+            action = self._get_action(action_name)
             await self._run_action(
                 action, tracker, output_channel, nlg, policy, confidence
             )
@@ -285,10 +285,8 @@ class MessageProcessor:
         action_confidences, policy = self._get_next_action_probabilities(tracker)
 
         max_confidence_index = int(np.argmax(action_confidences))
-        from rasa.core.slots import Slot # bf
         action = self.domain.action_for_index(
-            max_confidence_index, self.action_endpoint,
-            tracker.slots.get("bf_forms", Slot("bf_forms", initial_value=[])).initial_value, # bf
+            max_confidence_index, self.action_endpoint
         )
 
         logger.debug(
@@ -440,10 +438,8 @@ class MessageProcessor:
                     docs=DOCS_URL_DOMAINS,
                 )
 
-    def _get_action(self, action_name, tracker) -> Optional[Action]: # bf
-        from rasa.core.slots import Slot # bf
-        bf_form_slot = tracker.slots.get("bf_forms", Slot("bf_forms", initial_value=[])).initial_value, # bf
-        return self.domain.action_for_name(action_name, self.action_endpoint, bf_form_slot)
+    def _get_action(self, action_name) -> Optional[Action]:
+        return self.domain.action_for_name(action_name, self.action_endpoint)
 
     async def _parse_message(self, message, tracker: DialogueStateTracker = None):
         # for testing - you can short-cut the NLU part with a message

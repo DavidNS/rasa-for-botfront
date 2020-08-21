@@ -546,9 +546,6 @@ async def _train_nlu_with_validated_data(
         additional_arguments = {}
 
     with ExitStack() as stack:
-        models = {}
-        from rasa.nlu import config as cfg_loader
-
         if train_path:
             # If the train path was provided, do nothing on exit.
             _train_path = train_path
@@ -560,7 +557,7 @@ async def _train_nlu_with_validated_data(
         for lang in config:
             if config[lang]:
                 print_color("Start training {} NLU model ...".format(lang), color=bcolors.OKBLUE)
-                _, models[lang], _ = await rasa.nlu.train(
+                _, _, _ = await rasa.nlu.train(
                     config[lang],
                     file_importer,
                     _train_path,

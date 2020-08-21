@@ -70,7 +70,7 @@ class TrainingData:
         entity_synonyms = self.entity_synonyms.copy()
         regex_features = copy.deepcopy(self.regex_features)
         lookup_tables = copy.deepcopy(self.lookup_tables)
-        gazette = copy.__doc__deepcopy(self.gazette)
+        gazette = copy.deepcopy(self.gazette)
         responses = copy.deepcopy(self.responses)
         others = [other for other in others if other]
 

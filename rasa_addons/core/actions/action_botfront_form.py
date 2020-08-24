@@ -9,7 +9,7 @@ from rasa.core.actions.action import (
     ActionExecutionRejection,
     create_bot_utterance,
 )
-from rasa.core.events import Event, Form, SlotSet
+from rasa.core.events import Event, ActiveLoop, SlotSet
 from rasa.core.constants import REQUESTED_SLOT
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class ActionBotfrontForm(Action):
                 logger.debug(
                     f"Could not retrieve form '{tracker.active_loop}', there is something wrong with your domain."
                 )
-                return [Form(None)]
+                return [ActiveLoop(None)]
 
         # activate the form
         events = await self._activate_if_required(output_channel, nlg, tracker, domain)
@@ -100,7 +100,7 @@ class ActionBotfrontForm(Action):
             await self._validate_if_required(output_channel, nlg, tracker, domain)
         )
         # check that the form wasn't deactivated in validation
-        if Form(None) not in events:
+        if ActiveLoop(None) not in events:
 
             # create temp tracker with populated slots from `validate` method
             temp_tracker = tracker.copy()
@@ -132,7 +132,7 @@ class ActionBotfrontForm(Action):
 
     def deactivate(self) -> List[Event]:
         logger.debug(f"Deactivating the form '{self.name()}'")
-        return [Form(None), SlotSet(REQUESTED_SLOT, None)]
+        return [ActiveLoop(None), SlotSet(REQUESTED_SLOT, None)]
 
     async def submit(
         self,
@@ -473,7 +473,7 @@ class ActionBotfrontForm(Action):
             return []
         else:
             logger.debug(f"Activated the form '{self.name()}'")
-            events = [Form(self.name())]
+            events = [ActiveLoop(self.name())]
             events.extend(
                 await self.validate_prefilled(output_channel, nlg, tracker, domain)
             )

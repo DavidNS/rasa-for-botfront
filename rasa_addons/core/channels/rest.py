@@ -3,7 +3,8 @@ import rasa
 import os
 import logging
 import inspect
-from rasa.core.channels.channel import RestInput, UserMessage, CollectingOutputChannel, InputChannel
+from rasa.core.channels.channel import UserMessage, CollectingOutputChannel, InputChannel
+from rasa.core.channels.rest import RestInput
 from sanic.request import Request
 from sanic import Sanic, Blueprint, response
 from asyncio import Queue, CancelledError
